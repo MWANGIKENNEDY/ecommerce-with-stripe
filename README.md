@@ -682,3 +682,200 @@ Configure [payment methods](https://stripe.com/docs/payments/payment-methods/ove
 ---
 
 **🎉 Congratulations!** You now have a fully functional Stripe payment integration in test mode. Remember to thoroughly test all scenarios before going live.
+
+---
+
+# 🔧 Troubleshooting & Common Issues
+
+This section documents common issues encountered during development and deployment, along with their solutions.
+
+## Build & Deployment Issues
+
+### 1. Platform-Specific Dependencies Error
+
+**Problem**: Vercel deployment fails with platform compatibility errors:
+```
+npm error notsup Unsupported platform for @next/swc-darwin-arm64@16.1.1: 
+wanted {"os":"darwin","cpu":"arm64"} (current: {"os":"linux","cpu":"x64"})
+```
+
+**Solution**: Remove platform-specific dependencies from `package.json`:
+- Remove `@next/swc-darwin-arm64` from dependencies
+- Remove `lightningcss` if present
+- Next.js automatically handles SWC binaries for each platform
+
+**Fixed in**: Commit that removed platform-specific dependencies
+
+### 2. Tailwind CSS v4 Compatibility Issues
+
+**Problem**: Build fails with lightningcss native binding errors:
+```
+Error: Cannot find module '../lightningcss.darwin-arm64.node'
+```
+
+**Solution**: Downgrade to Tailwind CSS v3 for better stability:
+1. Update `package.json` devDependencies:
+   ```json
+   "tailwindcss": "^3.4.17",
+   "autoprefixer": "^10.4.20",
+   "postcss": "^8.4.49"
+   ```
+2. Update `postcss.config.mjs`:
+   ```javascript
+   const config = {
+     plugins: {
+       tailwindcss: {},
+       autoprefixer: {},
+     },
+   };
+   ```
+3. Replace `@import "tailwindcss"` with standard directives in `app/globals.css`:
+   ```css
+   @tailwind base;
+   @tailwind components;
+   @tailwind utilities;
+   ```
+
+### 3. TypeScript Compilation Errors
+
+**Problem**: Build fails with TypeScript errors related to incomplete Product types:
+```
+Type '{ id: number; title: string; price: number; ... }' is not assignable to parameter of type 'CartItemType'.
+```
+
+**Solution**: Ensure all test products include required Product interface properties:
+```typescript
+const testProduct = {
+  id: 1,
+  title: "Test Product",
+  description: "Test description", // Required
+  price: "49.99", // String, not number
+  image: "/test.jpg",
+  sizes: ["S", "M", "L"], // Required array
+  colors: ["Red", "Blue"], // Required array
+  category: "test", // Required
+  createdAt: "2024-12-01T10:00:00Z", // Required
+  selectedSize: "M",
+  selectedColor: "Red",
+  quantity: 1
+};
+```
+
+### 4. useSearchParams() Suspense Boundary Error
+
+**Problem**: Build fails during static generation:
+```
+useSearchParams() should be wrapped in a suspense boundary at page "/order-confirmation"
+```
+
+**Solution**: Wrap components using `useSearchParams()` in Suspense:
+```typescript
+import { Suspense } from 'react';
+
+function PageContent() {
+  const searchParams = useSearchParams();
+  // Component logic here
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <PageContent />
+    </Suspense>
+  );
+}
+```
+
+### 5. Error Handling TypeScript Issues
+
+**Problem**: TypeScript error with catch block error handling:
+```
+Type error: 'error' is of type 'unknown'.
+```
+
+**Solution**: Properly type-check errors in catch blocks:
+```typescript
+try {
+  // Some operation
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  console.log(`Error: ${message}`);
+}
+```
+
+## Development Environment Issues
+
+### 6. SWC Native Bindings Warnings
+
+**Problem**: Development server shows warnings about missing SWC bindings:
+```
+⚠ Attempted to load @next/swc-darwin-arm64, but it was not installed
+```
+
+**Solution**: These warnings are harmless - Next.js falls back to WASM bindings. To eliminate warnings:
+```bash
+npm install @next/swc-darwin-arm64  # For macOS ARM64
+# or
+npm install @next/swc-linux-x64-gnu  # For Linux x64
+```
+
+### 7. Middleware Deprecation Warning
+
+**Problem**: Console shows middleware deprecation warning:
+```
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead.
+```
+
+**Solution**: This is a Next.js 16+ warning. The middleware still works but consider migrating to the new proxy convention in future updates.
+
+## Quick Fix Commands
+
+### Clean Install
+```bash
+rm -rf node_modules package-lock.json .next
+npm install
+```
+
+### Reset Development Environment
+```bash
+rm -rf .next
+npm run dev
+```
+
+### Build Test
+```bash
+npm run build
+```
+
+## Prevention Checklist
+
+Before deploying or committing:
+
+- [ ] Remove platform-specific dependencies from `package.json`
+- [ ] Test build locally with `npm run build`
+- [ ] Ensure all TypeScript errors are resolved
+- [ ] Wrap `useSearchParams()` usage in Suspense boundaries
+- [ ] Use proper error handling in catch blocks
+- [ ] Test on different platforms if possible
+
+## Getting Help
+
+If you encounter issues not covered here:
+
+1. Check the [Next.js documentation](https://nextjs.org/docs)
+2. Review [Tailwind CSS migration guides](https://tailwindcss.com/docs/upgrade-guide)
+3. Search [GitHub issues](https://github.com/vercel/next.js/issues) for similar problems
+4. Check the browser console and build logs for specific error messages
+
+## Contributing Fixes
+
+Found a new issue or solution? Please:
+
+1. Document the problem and solution clearly
+2. Add it to this troubleshooting section
+3. Test the fix thoroughly
+4. Submit a pull request with the documentation update
+
+---
+
+*Last updated: December 26, 2024*
